@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>STEG Status — Coupures d'électricité en Tunisie en temps réel</title>
+  <meta name="description" content="Coupure de courant en Tunisie ? Carte en temps réel des coupures d'électricité signalées par les citoyens, délégation par délégation. Site indépendant, non affilié à la STEG.">
+  <link rel="canonical" href="https://steg-status.example/">
+  <meta name="theme-color" content="#0d1522">
+  <meta property="og:title" content="STEG Status — Coupures d'électricité en Tunisie en temps réel">
+  <meta property="og:description" content="Le courant est coupé chez vous ? Signalez-le et suivez les coupures en direct sur la carte de la Tunisie.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://steg-status.example/">
+  <meta property="og:image" content="https://steg-status.example/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="fr_TN">
+  <meta property="og:locale:alternate" content="ar_TN">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="STEG Status — Coupures d'électricité en Tunisie">
+  <meta name="twitter:description" content="Carte en temps réel des coupures d'électricité en Tunisie, signalées par les citoyens.">
+  <meta name="twitter:image" content="https://steg-status.example/og-image.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "STEG Status",
+    "url": "https://steg-status.example/",
+    "description": "Carte participative des coupures d'électricité en Tunisie, signalées par les citoyens en temps réel. Site indépendant, non affilié à la STEG.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Web",
+    "inLanguage": ["fr", "ar"],
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TND" },
+    "author": [
+      { "@type": "Person", "name": "Meher Bejaoui", "url": "https://www.meherbejaoui.com" },
+      { "@type": "Organization", "name": "Claude (Anthropic)" }
+    ]
+  }
+  </script>
+  <script src="analytics.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="bolt" aria-hidden="true">⚡</span>
+      <div class="brand-text">
+        <strong>STEG Status</strong>
+        <span class="brand-sub" data-i18n="tagline">Coupures d'électricité — Tunisie</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <nav class="nav" aria-label="Pages">
+        <a href="/" class="nav-link active" data-i18n="navMap">Carte</a>
+        <a href="/history.html" class="nav-link" data-i18n="navHistory">Historique</a>
+        <a href="/stats.html" class="nav-link" data-i18n="navStats">Statistiques</a>
+      </nav>
+      <button id="lang-toggle" class="lang-btn" type="button" aria-label="Changer de langue">العربية</button>
+    </div>
+  </header>
+
+  <!-- Dispatch strip: live network summary -->
+  <div class="dispatch" role="status" aria-live="polite">
+    <span class="live-dot" aria-hidden="true"></span>
+    <span class="dispatch-item"><span class="num num-down" id="stat-confirmed">–</span> <span data-i18n="zonesDown">zones en coupure confirmée</span></span>
+    <span class="dispatch-sep" aria-hidden="true">·</span>
+    <span class="dispatch-item"><span class="num num-suspect" id="stat-suspected">–</span> <span data-i18n="zonesSuspected">zones signalées</span></span>
+    <span class="dispatch-sep" aria-hidden="true">·</span>
+    <span class="dispatch-item"><span class="num" id="stat-reports">–</span> <span data-i18n="activeReports">signalements actifs</span></span>
+    <span class="dispatch-updated" id="updated-ago"></span>
+  </div>
+
+  <main class="layout">
+    <div id="map" role="application" aria-label="Carte des coupures"></div>
+
+    <section class="panel" id="panel" aria-label="Signaler une coupure">
+      <h1 class="panel-title" data-i18n="panelTitle">Le courant est coupé chez vous ?</h1>
+      <p class="panel-help" data-i18n="panelHelp">Choisissez votre délégation sur la carte ou ci-dessous, puis signalez la coupure. La zone passe en rouge sur la carte dès que plusieurs personnes confirment.</p>
+
+      <button id="locate-btn" class="btn btn-ghost" type="button">
+        <span aria-hidden="true">◎</span> <span data-i18n="useLocation">Utiliser ma position</span>
+      </button>
+
+      <div class="field">
+        <label for="gov-select" data-i18n="governorate">Gouvernorat</label>
+        <select id="gov-select"></select>
+      </div>
+      <div class="field">
+        <label for="del-select" data-i18n="delegation">Délégation</label>
+        <select id="del-select" disabled></select>
+      </div>
+
+      <div class="selected-card" id="selected-card" hidden>
+        <div class="selected-head">
+          <div>
+            <div class="selected-name" id="sel-name"></div>
+            <div class="selected-gov" id="sel-gov"></div>
+          </div>
+          <span class="badge" id="sel-badge"></span>
+        </div>
+        <div class="selected-meta" id="sel-meta"></div>
+        <div class="actions">
+          <button id="report-down" class="btn btn-down" type="button" data-i18n="reportDown">⚡ Signaler une coupure</button>
+          <button id="report-back" class="btn btn-back" type="button" data-i18n="reportBack">Le courant est revenu</button>
+          <button id="share-zone" class="btn btn-ghost btn-share" type="button">
+            <span aria-hidden="true">↗</span> <span data-i18n="shareZone">Partager cette zone</span>
+          </button>
+        </div>
+        <p class="feedback" id="feedback" role="status"></p>
+      </div>
+
+      <div class="legend">
+        <div class="legend-row"><span class="swatch sw-down"></span><span data-i18n="legendDown">Coupure confirmée</span></div>
+        <div class="legend-row"><span class="swatch sw-suspect"></span><span id="legend-suspect-label"></span></div>
+        <div class="legend-row"><span class="swatch sw-restoring"></span><span data-i18n="legendRestoring">Retour du courant signalé</span></div>
+        <div class="legend-row"><span class="swatch sw-ok"></span><span data-i18n="legendOk">Aucun signalement</span></div>
+      </div>
+
+      <p class="footnote" data-i18n="footnote">Données fournies par les citoyens, sans vérification officielle. Les signalements expirent automatiquement après 90 minutes. Aucune donnée personnelle n'est conservée.</p>
+
+      <section class="faq" aria-label="Questions fréquentes">
+        <h2 class="faq-title" data-i18n="faqTitle">Questions fréquentes</h2>
+        <details>
+          <summary data-i18n="faqQ1">Comment fonctionne STEG Status ?</summary>
+          <p data-i18n="faqA1">Chaque visiteur peut signaler une coupure de courant dans sa délégation. Dès que plusieurs personnes signalent la même zone, la coupure est confirmée et apparaît en rouge sur la carte, en temps réel. Les signalements expirent automatiquement, donc la carte reflète toujours la situation actuelle.</p>
+        </details>
+        <details>
+          <summary data-i18n="faqQ2">Ce site est-il un site officiel de la STEG ?</summary>
+          <p data-i18n="faqA2">Non. STEG Status est un site citoyen indépendant, sans aucun lien avec la Société Tunisienne de l'Électricité et du Gaz. Les données proviennent uniquement des signalements des visiteurs. Pour toute information officielle ou urgence, contactez directement la STEG.</p>
+        </details>
+        <details>
+          <summary data-i18n="faqQ3">Pourquoi ma zone n'apparaît pas en rouge ?</summary>
+          <p data-i18n="faqA3">Une zone passe en rouge quand suffisamment de personnes différentes signalent une coupure. Si vous êtes parmi les premiers, elle apparaît d'abord en orange (« signalements en cours »). Partagez le lien avec vos voisins pour confirmer plus vite.</p>
+        </details>
+        <details>
+          <summary data-i18n="faqQ4">Une coupure d'électricité est-elle en cours en Tunisie aujourd'hui ?</summary>
+          <p data-i18n="faqA4">La carte ci-dessus montre en direct les coupures d'électricité signalées aujourd'hui dans toute la Tunisie, gouvernorat par gouvernorat. Consultez aussi la page Historique pour les coupures récentes et la page Statistiques pour les zones les plus touchées.</p>
+        </details>
+      </section>
+
+      <p class="disclaimer" data-i18n="disclaimer">Site indépendant, non affilié à la STEG.</p>
+      <p class="credit"><span data-i18n="madeBy">Réalisé par</span> <a href="https://www.meherbejaoui.com" rel="author">Meher Bejaoui</a> &amp; Claude</p>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

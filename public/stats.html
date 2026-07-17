@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistiques des coupures d'électricité en Tunisie — STEG Status</title>
+  <meta name="description" content="Statistiques des coupures d'électricité en Tunisie : fréquence par gouvernorat, zones les plus touchées, durée moyenne. Site indépendant non affilié à la STEG.">
+  <link rel="canonical" href="https://steg-status.example/stats.html">
+  <meta name="theme-color" content="#0d1522">
+  <meta property="og:title" content="Statistiques des coupures d'électricité en Tunisie">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://steg-status.example/stats.html">
+  <meta property="og:image" content="https://steg-status.example/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script src="analytics.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body data-page="stats">
+  <header class="topbar">
+    <div class="brand">
+      <span class="bolt" aria-hidden="true">⚡</span>
+      <div class="brand-text">
+        <strong>STEG Status</strong>
+        <span class="brand-sub" data-i18n="tagline">Coupures d'électricité — Tunisie</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <nav class="nav" aria-label="Pages">
+        <a href="/" class="nav-link" data-i18n="navMap">Carte</a>
+        <a href="/history.html" class="nav-link" data-i18n="navHistory">Historique</a>
+        <a href="/stats.html" class="nav-link active" data-i18n="navStats">Statistiques</a>
+      </nav>
+      <button id="lang-toggle" class="lang-btn" type="button" aria-label="Changer de langue">العربية</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <h1 class="page-title" data-i18n="statsTitle">Statistiques</h1>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-num" id="kpi-events">–</div>
+        <div class="kpi-label" data-i18n="kpiEvents">coupures confirmées (30 j)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-num" id="kpi-duration">–</div>
+        <div class="kpi-label" data-i18n="kpiDuration">durée moyenne</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-num num-down" id="kpi-ongoing">–</div>
+        <div class="kpi-label" data-i18n="kpiOngoing">en cours</div>
+      </div>
+    </div>
+
+    <section class="stat-block">
+      <h2 data-i18n="chartTitle">Signalements par jour (14 derniers jours)</h2>
+      <div id="daily-chart" class="chart" role="img"></div>
+    </section>
+
+    <div class="stat-cols">
+      <section class="stat-block">
+        <h2 data-i18n="topTitle">Zones les plus touchées (7 j)</h2>
+        <ol class="rank-list" id="top-regions"></ol>
+      </section>
+
+      <section class="stat-block">
+        <h2 data-i18n="govTitle">Coupures par gouvernorat (30 j)</h2>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th data-i18n="governorate">Gouvernorat</th><th data-i18n="thEvents">Coupures</th></tr></thead>
+            <tbody id="gov-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <p class="credit"><span data-i18n="madeBy">Réalisé par</span> <a href="https://www.meherbejaoui.com" rel="author">Meher Bejaoui</a> &amp; Claude</p>
+  </main>
+
+  <script src="pages.js"></script>
+</body>
+</html>
