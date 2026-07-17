@@ -21,18 +21,23 @@
       chooseGov: '— Choisir un gouvernorat —',
       chooseDel: '— Choisir une délégation —',
       reportDown: '⚡ Signaler une coupure',
+      reportWorking: "✓ J'ai du courant",
       reportBack: "Le courant est rétabli ici",
       legendDown: 'Coupure confirmée',
       legendSuspect: (n) => `Signalements en cours (moins de ${n})`,
       legendRestoring: 'Retour du courant signalé',
+      legendWorking: 'Courant confirmé',
       legendOk: 'Aucun signalement',
       footnote: "Données fournies par les citoyens, sans vérification officielle. Les signalements expirent automatiquement après 90 minutes. Aucune donnée personnelle n'est conservée.",
       statusOk: 'Aucun signalement',
       statusSuspected: 'Signalements en cours',
       statusDown: 'Coupure confirmée',
       statusRestoring: 'Retour signalé',
+      statusWorking: 'Courant confirmé',
       metaReports: (n, t) => `${n} signalement${n > 1 ? 's' : ''} · confirmé à partir de ${t}`,
+      metaWorking: (n) => `${n} personne${n > 1 ? 's ont' : ' a'} confirmé avoir du courant`,
       sent: 'Merci, votre signalement a été pris en compte.',
+      sentWorking: 'Merci, vous avez confirmé que le courant fonctionne.',
       sentBack: 'Merci, le retour du courant a été signalé.',
       already: (m) => `Vous avez déjà signalé cette zone. Réessayez dans ${m} minutes.`,
       rateLimited: 'Trop de signalements pour le moment. Réessayez plus tard.',
@@ -71,18 +76,23 @@
       chooseGov: '— اختر الولاية —',
       chooseDel: '— اختر المعتمدية —',
       reportDown: '⚡ الإبلاغ عن انقطاع',
-      reportBack: 'الكهرباء تعمل',
+      reportWorking: '✓ عندي الكهرباء',
+      reportBack: 'رجعت الكهرباء هنا',
       legendDown: 'انقطاع مؤكّد',
       legendSuspect: (n) => `بلاغات جارية (أقل من ${n})`,
       legendRestoring: 'تمّ الإبلاغ عن رجوع الكهرباء',
+      legendWorking: 'كهرباء مؤكّدة',
       legendOk: 'لا توجد بلاغات',
       footnote: 'بيانات مقدّمة من المواطنين دون تحقّق رسمي. تنتهي صلاحية البلاغات تلقائيًا بعد 90 دقيقة. لا يتمّ الاحتفاظ بأي بيانات شخصية.',
       statusOk: 'لا توجد بلاغات',
       statusSuspected: 'بلاغات جارية',
       statusDown: 'انقطاع مؤكّد',
       statusRestoring: 'تمّ الإبلاغ عن الرجوع',
+      statusWorking: 'كهرباء مؤكّدة',
       metaReports: (n, t) => `${n} بلاغ · يُؤكَّد بداية من ${t}`,
+      metaWorking: (n) => `${n} شخص أكّدوا وجود الكهرباء`,
       sent: 'شكرًا، تمّ تسجيل بلاغك.',
+      sentWorking: 'شكرًا، لقد أكّدت أنّ الكهرباء تعمل.',
       sentBack: 'شكرًا، تمّ الإبلاغ عن رجوع الكهرباء.',
       already: (m) => `سبق أن أبلغت عن هذه المنطقة. أعد المحاولة بعد ${m} دقيقة.`,
       rateLimited: 'عدد كبير من البلاغات حاليًا. أعد المحاولة لاحقًا.',
@@ -132,6 +142,7 @@
     suspected: { fillColor: '#ffb54d', fillOpacity: 0.55, color: '#ffb54d', weight: 1.2 },
     down:      { fillColor: '#ef5350', fillOpacity: 0.75, color: '#ff8a80', weight: 1.4 },
     restoring: { fillColor: '#35c99a', fillOpacity: 0.55, color: '#35c99a', weight: 1.2 },
+    working:   { fillColor: '#35c99a', fillOpacity: 0.22, color: 'rgba(53,201,154,0.55)', weight: 1 },
   };
 
   const regionStatus = (id) => (status.regions[id] && status.regions[id].status) || 'ok';
@@ -235,9 +246,11 @@
     badge.textContent = t('status' + cap(st));
 
     const r = status.regions[id];
-    $('sel-meta').textContent = r && r.down
-      ? t('metaReports', r.down, status.thresholds.confirm)
-      : t('metaReports', 0, status.thresholds.confirm);
+    if (r && st === 'working') {
+      $('sel-meta').textContent = t('metaWorking', r.working);
+    } else {
+      $('sel-meta').textContent = t('metaReports', (r && r.down) || 0, status.thresholds.confirm);
+    }
 
     $('gov-select').value = f.properties.gouv_id;
     buildDelSelect();
@@ -271,12 +284,13 @@
     $('legend-suspect-label').textContent = t('legendSuspect', status.thresholds.confirm);
   }
 
+  const REPORT_BTNS = ['report-down', 'report-working', 'report-back'];
+
   async function sendReport(type) {
     if (!selectedId) return;
     const fb = $('feedback');
     fb.className = 'feedback';
-    $('report-down').disabled = true;
-    $('report-back').disabled = true;
+    REPORT_BTNS.forEach((id) => { $(id).disabled = true; });
     try {
       const res = await fetch('/api/report', {
         method: 'POST',
@@ -285,7 +299,7 @@
       });
       if (res.ok) {
         fb.classList.add('good');
-        fb.textContent = type === 'down' ? t('sent') : t('sentBack');
+        fb.textContent = type === 'down' ? t('sent') : type === 'working' ? t('sentWorking') : t('sentBack');
         await refreshStatus();
       } else {
         const body = await res.json().catch(() => ({}));
@@ -299,8 +313,7 @@
       fb.textContent = t('netError');
     } finally {
       setTimeout(() => {
-        $('report-down').disabled = false;
-        $('report-back').disabled = false;
+        REPORT_BTNS.forEach((id) => { $(id).disabled = false; });
       }, 1500);
     }
   }
@@ -420,6 +433,7 @@
     $('gov-select').addEventListener('change', buildDelSelect);
     $('del-select').addEventListener('change', (e) => { if (e.target.value) showSelected(e.target.value); });
     $('report-down').addEventListener('click', () => sendReport('down'));
+    $('report-working').addEventListener('click', () => sendReport('working'));
     $('report-back').addEventListener('click', () => sendReport('restored'));
     $('share-zone').addEventListener('click', shareZone);
     $('locate-btn').addEventListener('click', locate);
