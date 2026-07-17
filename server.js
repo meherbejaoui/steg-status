@@ -21,11 +21,11 @@ const CONFIG = {
 
   // A delegation is marked DOWN (confirmed) once this many distinct people
   // report an outage within REPORT_TTL_MIN minutes.
-  CONFIRM_THRESHOLD: parseInt(process.env.CONFIRM_THRESHOLD || '10', 10),
+  CONFIRM_THRESHOLD: parseInt(process.env.CONFIRM_THRESHOLD || '3', 10),
 
   // Below the confirm threshold but at/above this, the zone is shown as
   // "suspected" (reports coming in, not yet confirmed).
-  SUSPECT_THRESHOLD: parseInt(process.env.SUSPECT_THRESHOLD || '3', 10),
+  SUSPECT_THRESHOLD: parseInt(process.env.SUSPECT_THRESHOLD || '1', 10),
 
   // How long an outage report stays "alive". Old reports decay away, so a
   // zone automatically clears if people stop reporting.
@@ -34,7 +34,7 @@ const CONFIG = {
   // "Power is back" reports: window and minimum count needed to clear a zone
   // early (must also be at least half the number of active outage reports).
   RESTORE_WINDOW_MIN: parseInt(process.env.RESTORE_WINDOW_MIN || '30', 10),
-  RESTORE_MIN: parseInt(process.env.RESTORE_MIN || '3', 10),
+  RESTORE_MIN: parseInt(process.env.RESTORE_MIN || '2', 10),
 
   // Anti-abuse: one report per person per delegation per cooldown window,
   // and a global hourly cap per person.
