@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://steg-status.example/sitemap.xml
+Sitemap: https://steg-status.meherbejaoui.com/sitemap.xml
