@@ -8,7 +8,7 @@
  * Kept in its own file so the Content-Security-Policy can stay strict
  * (no inline scripts anywhere on the site).
  */
-const GA_MEASUREMENT_ID = ''; // e.g. 'G-XXXXXXXXXX'
+const GA_MEASUREMENT_ID = 'G-53406JLEX4'; // e.g. 'G-XXXXXXXXXX'
 
 if (GA_MEASUREMENT_ID) {
   const s = document.createElement('script');
