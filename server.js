@@ -44,6 +44,11 @@ const CONFIG = {
   // General API rate limit (all /api/* requests) per IP per minute.
   API_PER_MINUTE: parseInt(process.env.API_PER_MINUTE || '60', 10),
 
+  // "I have power" confirmations show a subtle green tint. They live shorter
+  // than outage reports (power state changes fast) and never override red.
+  WORKING_TTL_MIN: parseInt(process.env.WORKING_TTL_MIN || '45', 10),
+  WORKING_MIN: parseInt(process.env.WORKING_MIN || '3', 10),
+
   // Data retention.
   REPORT_RETENTION_DAYS: parseInt(process.env.REPORT_RETENTION_DAYS || '35', 10),
   EVENT_RETENTION_DAYS: parseInt(process.env.EVENT_RETENTION_DAYS || '365', 10),
@@ -78,7 +83,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     region_id TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('down', 'restored')),
+    type TEXT NOT NULL CHECK (type IN ('down', 'restored', 'working')),
     ip_hash TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
@@ -99,6 +104,36 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_events_started ON events (started_at);
 `);
 
+// Migration: databases created before the "working" report type have a CHECK
+// constraint that rejects it. SQLite can't ALTER a CHECK, so if the old
+// constraint is present we rebuild the table (data preserved).
+(() => {
+  const sql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='reports'"
+  ).get();
+  if (sql && !sql.sql.includes("'working'")) {
+    console.log('Migrating reports table to allow "working" reports...');
+    db.exec('BEGIN');
+    db.exec(`
+      CREATE TABLE reports_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        region_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('down', 'restored', 'working')),
+        ip_hash TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      INSERT INTO reports_new SELECT * FROM reports;
+      DROP TABLE reports;
+      ALTER TABLE reports_new RENAME TO reports;
+      CREATE INDEX IF NOT EXISTS idx_reports_region_time ON reports (region_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_reports_ip_time ON reports (ip_hash, created_at);
+      CREATE INDEX IF NOT EXISTS idx_reports_time ON reports (created_at);
+    `);
+    db.exec('COMMIT');
+    console.log('Migration complete.');
+  }
+})();
+
 const stmts = {
   insert: db.prepare(
     'INSERT INTO reports (region_id, type, ip_hash, created_at) VALUES (?, ?, ?, ?)'
@@ -116,6 +151,10 @@ const stmts = {
   activeRestored: db.prepare(
     `SELECT region_id, COUNT(DISTINCT ip_hash) AS n
      FROM reports WHERE type = 'restored' AND created_at >= ? GROUP BY region_id`
+  ),
+  activeWorking: db.prepare(
+    `SELECT region_id, COUNT(DISTINCT ip_hash) AS n
+     FROM reports WHERE type = 'working' AND created_at >= ? GROUP BY region_id`
   ),
   pruneReports: db.prepare('DELETE FROM reports WHERE created_at < ?'),
   pruneEvents: db.prepare('DELETE FROM events WHERE ended_at IS NOT NULL AND started_at < ?'),
@@ -178,12 +217,16 @@ function computeStatus() {
   const downSince = now - CONFIG.REPORT_TTL_MIN * 60 * 1000;
   const restoredSince = now - CONFIG.RESTORE_WINDOW_MIN * 60 * 1000;
 
+  const workingSince = now - CONFIG.WORKING_TTL_MIN * 60 * 1000;
+
   const restored = new Map();
   for (const r of stmts.activeRestored.all(restoredSince)) restored.set(r.region_id, r.n);
+  const working = new Map();
+  for (const r of stmts.activeWorking.all(workingSince)) working.set(r.region_id, r.n);
 
   const regions = {};
   const confirmedNow = new Set();
-  let confirmed = 0, suspected = 0, totalReports = 0;
+  let confirmed = 0, suspected = 0, workingCount = 0, totalReports = 0;
 
   for (const r of stmts.activeDown.all(downSince)) {
     const down = r.n;
@@ -202,7 +245,19 @@ function computeStatus() {
       suspected++;
     }
 
-    regions[r.region_id] = { status, down, restored: rest, last: r.last };
+    regions[r.region_id] = { status, down, restored: rest, working: working.get(r.region_id) || 0, last: r.last };
+  }
+
+  // "Working" confirmations (1C): show a subtle green tint ONLY in zones that
+  // aren't already flagged by outage reports. Green never overrides red,
+  // amber, or restoring — different neighborhoods differ, and a confirmed
+  // outage must always stay visible.
+  for (const [regionId, n] of working) {
+    if (regions[regionId]) continue; // zone already has outage reports; leave as-is
+    if (n >= CONFIG.WORKING_MIN) {
+      regions[regionId] = { status: 'working', down: 0, restored: 0, working: n, last: now };
+      workingCount++;
+    }
   }
 
   // Event transitions: open events for newly confirmed zones, close events
@@ -230,9 +285,10 @@ function computeStatus() {
     thresholds: {
       confirm: CONFIG.CONFIRM_THRESHOLD,
       suspect: CONFIG.SUSPECT_THRESHOLD,
+      working: CONFIG.WORKING_MIN,
       ttl_min: CONFIG.REPORT_TTL_MIN,
     },
-    totals: { confirmed, suspected, reports: totalReports },
+    totals: { confirmed, suspected, working: workingCount, reports: totalReports },
     regions,
   };
 }
@@ -325,7 +381,7 @@ app.post('/api/report', (req, res) => {
   if (typeof regionId !== 'string' || !REGIONS.has(regionId)) {
     return res.status(400).json({ error: 'unknown_region' });
   }
-  if (type !== 'down' && type !== 'restored') {
+  if (type !== 'down' && type !== 'restored' && type !== 'working') {
     return res.status(400).json({ error: 'invalid_type' });
   }
 
