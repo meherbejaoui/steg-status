@@ -14,7 +14,7 @@ ENV PORT=3000
 # Store the database on a mountable volume for persistence
 ENV DB_PATH=/data/data.sqlite
 RUN mkdir -p /data
-VOLUME /data
+#VOLUME /data
 
 EXPOSE 3000
 CMD ["node", "server.js"]
